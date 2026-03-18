@@ -1,0 +1,39 @@
+name: Custom SlimeVR Firmware (Fixed)
+
+on:
+  workflow_dispatch: # 수동 실행 전용
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      # 존재하지 않는 Nordic 패키지 대신, 공식 Zephyr 셋업 사용 (에러 해결의 핵심)
+      - name: Setup Zephyr Environment
+        uses: zephyrproject-rtos/action-zephyr-setup@v1
+        with:
+          app-path: source
+          toolchains: arm-zephyr-eabi
+
+      - name: Build Firmware
+        working-directory: source
+        run: |
+          west build -b promicro_uf2/nrf52840/i2c -d build -- \
+            -DCONFIG_CLOCK_CONTROL_NRF_K32SRC_RC=y \
+            -DCONFIG_CLOCK_CONTROL_NRF_K32SRC_XTAL=n \
+            -DCONFIG_CLOCK_CONTROL_NRF_K32SRC_500PPM=y \
+            -DCONFIG_MAGNETOMETER=y \
+            -DCONFIG_SLIMEVR_MAGNETOMETER=y \
+            -DCONFIG_SLIMEVR_MAG_QMC6309=y \
+            -DCONFIG_I2C=y \
+            -DCONFIG_LSM6DSV=y
+
+      - name: Upload UF2 File
+        uses: actions/upload-artifact@v4
+        with:
+          name: SlimeNRF_QMC6309_I2C_NoCLK
+          path: source/build/zephyr/zephyr.uf2
