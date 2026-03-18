@@ -1,27 +1,31 @@
-name: Custom SlimeVR Firmware (Fixed)
+name: Ultimate Custom SlimeVR Firmware
 
 on:
-  workflow_dispatch: # 수동 실행 전용
+  workflow_dispatch: # 수동 실행
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 노르딕 반도체의 공식 nRF Connect SDK 2.5.0 환경을 통째로 불러옵니다. (에러 원천 차단)
+    container:
+      image: nrfconnect/sdk-nrf:v2.5.0
+    
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          path: source
+          path: firmware
 
-      # 존재하지 않는 Nordic 패키지 대신, 공식 Zephyr 셋업 사용 (에러 해결의 핵심)
-      - name: Setup Zephyr Environment
-        uses: zephyrproject-rtos/action-zephyr-setup@v1
-        with:
-          app-path: source
-          toolchains: arm-zephyr-eabi
-
-      - name: Build Firmware
-        working-directory: source
+      - name: Initialize and Update West Workspace
+        # SlimeVR 전용 모듈과 보드 정보들을 다운로드하고 연결합니다. (보드 못 찾는 에러 해결)
         run: |
+          cd firmware
+          west init -l .
+          west update
+
+      - name: Build Custom Firmware
+        run: |
+          cd firmware
           west build -b promicro_uf2/nrf52840/i2c -d build -- \
             -DCONFIG_CLOCK_CONTROL_NRF_K32SRC_RC=y \
             -DCONFIG_CLOCK_CONTROL_NRF_K32SRC_XTAL=n \
@@ -36,4 +40,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: SlimeNRF_QMC6309_I2C_NoCLK
-          path: source/build/zephyr/zephyr.uf2
+          path: firmware/build/zephyr/zephyr.uf2
